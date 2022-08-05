@@ -1,22 +1,19 @@
 package com.codeWithAshith.SpringBatch.configuration;
 
 
-import com.codeWithAshith.SpringBatch.data.Employee;
-import com.codeWithAshith.SpringBatch.data.EmployeeMapper;
+import com.codeWithAshith.SpringBatch.reader.StatefulItemReader;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.file.FlatFileItemReader;
-import org.springframework.batch.item.file.mapping.DefaultLineMapper;
-import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.ClassPathResource;
 
-import javax.sql.DataSource;
+import javax.batch.api.chunk.ItemReader;
+import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
@@ -28,34 +25,26 @@ public class JobConfiguration {
     @Autowired
     private StepBuilderFactory stepBuilderFactory;
 
+
     @Bean
-    public FlatFileItemReader<Employee> cursorItemReader() {
-        //Create reader instance
-        FlatFileItemReader<Employee> reader = new FlatFileItemReader<Employee>();
-        reader.setResource(new ClassPathResource("employee.csv"));
-        reader.setLinesToSkip(1);
+    @StepScope
+    public StatefulItemReader itemReader() {
+        List<String> items = new ArrayList<>();
 
-        DefaultLineMapper<Employee> lineMapper = new DefaultLineMapper<>();
+        for (int i = 1; i <= 100;i++){
+            items.add(String.valueOf(i));
+        }
 
-        DelimitedLineTokenizer tokenizer = new DelimitedLineTokenizer();
-        tokenizer.setNames(new String[] { "id", "firstName", "lastName" });
-
-        lineMapper.setLineTokenizer(tokenizer);
-        lineMapper.setFieldSetMapper(new EmployeeMapper());
-        lineMapper.afterPropertiesSet();
-
-        reader.setLineMapper(lineMapper);
-
-        return reader;
+        return new StatefulItemReader(items);
     }
 
     @Bean
-    public ItemWriter<Employee> personItemWriter() {
-        return new ItemWriter<Employee>() {
+    public ItemWriter itemWriter(){
+        return new ItemWriter<String>() {
             @Override
-            public void write(List<? extends Employee> items) throws Exception {
-                for (Employee employee : items) {
-                    System.out.println(employee.toString());
+            public void write(List<? extends String> items) throws Exception {
+                for (String item:items){
+                    System.out.println(item);
                 }
             }
         };
@@ -64,9 +53,9 @@ public class JobConfiguration {
     @Bean
     public Step step1() {
         return stepBuilderFactory.get("step1")
-                .<Employee, Employee>chunk(10)
-                .reader(cursorItemReader())
-                .writer(personItemWriter())
+                .<String, String>chunk(10)
+                .reader(itemReader())
+                .writer(itemWriter())
                 .build();
     }
 
